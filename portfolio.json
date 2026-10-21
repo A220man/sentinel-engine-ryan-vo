@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "name": "sentinel-engine-ryan-vo",
+  "owner": "A220man",
+  "email": "ryandtvo@gmail.com",
+  "domain": "AI/ML developer tools",
+  "summary": "Work in progress: sentinel-engine-ryan-vo",
+  "workflows": [
+    "Browse and select models with capability labels (tool_capable, chat_only, unavailable)",
+    "Send chat completions with automatic routing, failover, and hedged requests",
+    "Manage platforms and API keys with encrypted storage and health monitoring"
+  ],
+  "auth": "oidc-keycloak-saml-broker",
+  "llm_providers": [
+    "openai-compatible",
+    "anthropic",
+    "gemini",
+    "ollama"
+  ],
+  "status": "work-in-progress"
+}

@@ -1,0 +1,87 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: sentinel-engine-backend
+    ports:
+      - "127.0.0.1:8000:8000"
+    environment:
+      - DATABASE_URL=sqlite+aiosqlite:///./data/sentinel.db
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY}
+      - LLM_API_KEY=${LLM_API_KEY}
+      - LLM_PROVIDER=${LLM_PROVIDER:-openai-compatible}
+      - LLM_MODEL=${LLM_MODEL:-gpt-4o-mini}
+      - LLM_BASE_URL=${LLM_BASE_URL:-https://api.openai.com/v1}
+      - PROBE_INTERVAL_SEC=${PROBE_INTERVAL_SEC:-300}
+      - PROBE_TIMEOUT_SEC=${PROBE_TIMEOUT_SEC:-30}
+      - PROBE_ENABLED=${PROBE_ENABLED:-true}
+      - MAX_CONCURRENT_PER_KEY=${MAX_CONCURRENT_PER_KEY:-10}
+      - HEDGE_AFTER_MS=${HEDGE_AFTER_MS:-5000}
+      - DEFAULT_TIMEOUT_SEC=${DEFAULT_TIMEOUT_SEC:-60}
+      - KEYCLOAK_URL=http://keycloak:8080
+      - KEYCLOAK_REALM=${KEYCLOAK_REALM:-sentinel}
+      - KEYCLOAK_CLIENT_ID=${KEYCLOAK_CLIENT_ID:-sentinel-frontend}
+      - KEYCLOAK_CLIENT_SECRET=${KEYCLOAK_CLIENT_SECRET}
+      - OIDC_ISSUER=${OIDC_ISSUER}
+      - OIDC_AUDIENCE=${OIDC_AUDIENCE:-sentinel-api}
+      - CORS_ORIGINS=["http://localhost:5173","http://127.0.0.1:5173"]
+      - DEMO_MODE=${DEMO_MODE:-false}
+      - SENTINEL_DEMO_ALLOWED=${SENTINEL_DEMO_ALLOWED:-0}
+    volumes:
+      - sentinel-data:/app/data
+    depends_on:
+      - keycloak
+    healthcheck:
+      test: ["CMD", "python", "-c", "import httpx; httpx.get('http://localhost:8000/health', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: sentinel-engine-frontend
+    ports:
+      - "127.0.0.1:5173:5173"
+    environment:
+      - VITE_API_URL=http://localhost:8000
+    depends_on:
+      - backend
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:5173"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:24.0
+    container_name: sentinel-engine-keycloak
+    command: start-dev --import-realm
+    environment:
+      - KEYCLOAK_ADMIN=admin
+      - KEYCLOAK_ADMIN_PASSWORD=admin
+      - KC_DB=dev-file
+    ports:
+      - "127.0.0.1:8080:8080"
+    volumes:
+      - ./keycloak/realm-export.json:/opt/keycloak/data/import/realm-export.json:ro
+      - keycloak-data:/opt/keycloak/data
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8080/health/ready"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+
+volumes:
+  sentinel-data:
+  keycloak-data:
