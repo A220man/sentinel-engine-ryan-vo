@@ -1,0 +1,138 @@
+{
+  "schema_version": 1,
+  "current_feature": "core-skeleton",
+  "features": [
+    {
+      "id": "core-skeleton",
+      "title": "Core FastAPI/React skeleton with model listing and chat",
+      "status": "done",
+      "acceptance": [
+        "FastAPI backend starts and serves /v1/models endpoint",
+        "React frontend builds and loads",
+        "Frontend can list available models from backend",
+        "Frontend can send chat completion request and receive response",
+        "SQLite persistence for models and API keys",
+        "Docker compose for local development"
+      ],
+      "implementation": [
+        "backend/app/main.py",
+        "backend/app/api/routes.py",
+        "backend/app/services/router.py",
+        "backend/app/models/schema.py",
+        "backend/requirements.txt",
+        "frontend/package.json",
+        "frontend/src/main.tsx",
+        "frontend/src/App.tsx",
+        "frontend/src/api/client.ts",
+        "docker-compose.yaml",
+        "README.md"
+      ],
+      "tests": [
+        "backend/tests/test_routes.py",
+        "backend/tests/test_router.py",
+        "frontend/src/App.test.tsx"
+      ]
+    },
+    {
+      "id": "smart-routing",
+      "title": "Smart routing with failover and per-key concurrency",
+      "status": "planned",
+      "acceptance": [
+        "Router selects healthy keys per platform",
+        "Per-key concurrency limits enforced",
+        "Automatic failover on upstream errors",
+        "Hedged requests (race multiple providers)",
+        "Failure attribution: 429/timeout → provider, 404 → model"
+      ],
+      "implementation": [
+        "backend/app/services/router.py",
+        "backend/tests/test_router.py"
+      ],
+      "tests": [
+        "backend/tests/test_router.py"
+      ]
+    },
+    {
+      "id": "model-probing",
+      "title": "Proactive per-model probing with capability labels",
+      "status": "planned",
+      "acceptance": [
+        "Scheduler runs periodic probes per (platform, model, key)",
+        "Labels: tool_capable, chat_only, unavailable, unknown",
+        "Labels decay over time (staleness threshold)",
+        "Dashboard badges show capability labels",
+        "API exposes labels via /v1/models"
+      ],
+      "implementation": [
+        "backend/app/services/prober.py",
+        "backend/app/api/routes.py",
+        "frontend/src/components/ModelList.tsx",
+        "backend/tests/test_prober.py"
+      ],
+      "tests": [
+        "backend/tests/test_prober.py"
+      ]
+    },
+    {
+      "id": "streaming-keepalive",
+      "title": "SSE keep-alive during reasoning buffering",
+      "status": "planned",
+      "acceptance": [
+        "SSE pings emitted during reasoning buffer phase",
+        "Anthropic surface: event: ping frames",
+        "OpenAI surface: : keepalive comment lines",
+        "Configurable interval via STREAM_KEEPALIVE_MS env"
+      ],
+      "implementation": [
+        "backend/app/api/routes.py",
+        "backend/tests/test_streaming.py"
+      ],
+      "tests": [
+        "backend/tests/test_streaming.py"
+      ]
+    },
+    {
+      "id": "oidc-auth",
+      "title": "OIDC authentication with Keycloak",
+      "status": "planned",
+      "acceptance": [
+        "OIDC authorization-code flow with PKCE",
+        "HttpOnly SameSite cookies for session",
+        "CSRF protection on cookie-authenticated writes",
+        "Role-based access: viewer, operator, admin",
+        "Keycloak realm import with SAML broker config",
+        "Demo mode binds localhost only"
+      ],
+      "implementation": [
+        "backend/app/api/routes.py",
+        "backend/app/core/config.py",
+        "keycloak/realm-export.json",
+        "docker-compose.yaml"
+      ],
+      "tests": [
+        "backend/tests/test_auth.py"
+      ]
+    },
+    {
+      "id": "full-dashboard",
+      "title": "Complete dashboard UI with management features",
+      "status": "planned",
+      "acceptance": [
+        "Platform/key management UI",
+        "Model browsing with filters",
+        "Chat playground with streaming",
+        "Stats and health monitoring",
+        "Settings and demo mode toggle"
+      ],
+      "implementation": [
+        "frontend/src/components/Sidebar.tsx",
+        "frontend/src/components/ChatPanel.tsx",
+        "frontend/src/components/ModelList.tsx",
+        "frontend/src/store.ts"
+      ],
+      "tests": [
+        "frontend/src/App.test.tsx"
+      ]
+    }
+  ]
+}
