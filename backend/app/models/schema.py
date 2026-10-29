@@ -2,7 +2,7 @@ from sqlalchemy import (
     Column, Integer, String, Text, DateTime, Boolean, ForeignKey, UniqueConstraint, Index
 )
 from sqlalchemy.orm import declarative_base, relationship
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 Base = declarative_base()
@@ -21,8 +21,8 @@ class Platform(Base):
     quota_pool_type: str = Column(String(16), default="per-key")  # per-key, per-account
     default_concurrency: int = Column(Integer, default=10)
     enabled: bool = Column(Boolean, default=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
     keys = relationship("ApiKey", back_populates="platform")
     models = relationship("Model", back_populates="platform")
@@ -47,8 +47,8 @@ class ApiKey(Base):
     current_concurrency: int = Column(Integer, default=0)
     cooldown_until: Optional[datetime] = Column(DateTime, nullable=True)
     scope: str = Column(String(64), default="chat")  # chat, embeddings, all
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
     platform = relationship("Platform", back_populates="keys")
     models = relationship("Model", back_populates="api_key")
@@ -74,8 +74,8 @@ class Model(Base):
     last_probed = Column(DateTime, nullable=True)
     probe_success_count: int = Column(Integer, default=0)
     probe_failure_count: int = Column(Integer, default=0)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
     platform = relationship("Platform", back_populates="models")
     api_key = relationship("ApiKey", back_populates="models")
@@ -104,7 +104,7 @@ class RequestLog(Base):
     error_message: Optional[str] = Column(Text, nullable=True)
     attempt_number: int = Column(Integer, default=1)
     hedged: bool = Column(Boolean, default=False)
-    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), index=True)
 
     api_key = relationship("ApiKey")
 
@@ -121,7 +121,7 @@ class ProbeLog(Base):
     capability_after: str = Column(String(32), nullable=False)
     latency_ms: int = Column(Integer, default=0)
     error_message: Optional[str] = Column(Text, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), index=True)
 
     model = relationship("Model")
     api_key = relationship("ApiKey")
@@ -136,9 +136,9 @@ class RateLimitCooldown(Base):
     api_key_id = Column(Integer, ForeignKey("api_keys.id"), nullable=True)
     source: str = Column(String(32), nullable=False)  # heuristic, explicit_429, provider_header
     reason: str = Column(String(256), nullable=False)
-    started_at = Column(DateTime, default=datetime.utcnow)
+    started_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     expires_at = Column(DateTime, nullable=False, index=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     __table_args__ = (
         Index("ix_cooldown_lookup", "platform", "model_id", "api_key_id", "expires_at"),

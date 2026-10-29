@@ -1,5 +1,5 @@
 from typing import Optional, List, Dict, Any
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import asyncio
 import httpx
 import random
@@ -47,7 +47,7 @@ class ModelProber:
     async def probe_all_models(self):
         async for db in get_db():
             # Get models that need probing (not probed recently, or unknown capability)
-            cutoff = datetime.utcnow() - timedelta(seconds=settings.probe_interval_sec * 2)
+            cutoff = datetime.now(timezone.utc) - timedelta(seconds=settings.probe_interval_sec * 2)
             query = select(Model).where(
                 and_(
                     Model.enabled == True,
@@ -69,7 +69,7 @@ class ModelProber:
     async def _should_probe(self, db: AsyncSession, model: Model) -> bool:
         # Skip if model had recent real traffic (check request logs)
         from app.models.schema import RequestLog
-        recent_cutoff = datetime.utcnow() - timedelta(minutes=10)
+        recent_cutoff = datetime.now(timezone.utc) - timedelta(minutes=10)
         query = select(RequestLog).where(
             and_(
                 RequestLog.model_id == model.model_id,
@@ -130,11 +130,11 @@ class ModelProber:
             probe_type = "chat"
 
         capability_before = model.capability
-        start = datetime.utcnow()
+        start = datetime.now(timezone.utc)
 
         try:
             response = await self.client.post(url, json=payload, headers=headers)
-            latency_ms = int((datetime.utcnow() - start).total_seconds() * 1000)
+            latency_ms = int((datetime.now(timezone.utc) - start).total_seconds() * 1000)
 
             if response.status_code == 200:
                 data = response.json()
@@ -152,7 +152,7 @@ class ModelProber:
                     capability_after = "chat_only" if capability_before == "unknown" else capability_before
 
                 model.capability = capability_after
-                model.last_probed = datetime.utcnow()
+                model.last_probed = datetime.now(timezone.utc)
                 model.probe_success_count += 1
 
                 await self._log_probe(db, model, probe_type, "success", capability_before, capability_after, latency_ms)
@@ -160,16 +160,16 @@ class ModelProber:
             else:
                 capability_after = "unavailable"
                 model.capability = capability_after
-                model.last_probed = datetime.utcnow()
+                model.last_probed = datetime.now(timezone.utc)
                 model.probe_failure_count += 1
 
                 await self._log_probe(db, model, probe_type, "failure", capability_before, capability_after, latency_ms, response.text)
 
         except Exception as e:
-            latency_ms = int((datetime.utcnow() - start).total_seconds() * 1000)
+            latency_ms = int((datetime.now(timezone.utc) - start).total_seconds() * 1000)
             capability_after = "unavailable"
             model.capability = capability_after
-            model.last_probed = datetime.utcnow()
+            model.last_probed = datetime.now(timezone.utc)
             model.probe_failure_count += 1
 
             await self._log_probe(db, model, probe_type, "timeout", capability_before, capability_after, latency_ms, str(e))

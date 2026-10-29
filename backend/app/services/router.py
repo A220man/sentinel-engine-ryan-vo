@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from typing import Optional, List, Dict, Any
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import asyncio
 import httpx
 import random
@@ -13,7 +13,6 @@ from app.services.encryption import encryption_service
 from app.core.config import settings
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, or_, func
-from sqlalchemy.orm import selectinload
 
 
 class FailureCategory(str, Enum):
@@ -125,7 +124,7 @@ class Router:
 
     async def _is_key_usable(self, db: AsyncSession, key: ApiKey) -> bool:
         # Check cooldown
-        if key.cooldown_until and key.cooldown_until > datetime.utcnow():
+        if key.cooldown_until and key.cooldown_until > datetime.now(timezone.utc):
             return False
 
         # Check quota
@@ -144,7 +143,7 @@ class Router:
             and_(
                 RateLimitCooldown.platform == key.platform.name,
                 RateLimitCooldown.api_key_id == key.id,
-                RateLimitCooldown.expires_at > datetime.utcnow()
+                RateLimitCooldown.expires_at > datetime.now(timezone.utc)
             )
         )
         result = await db.execute(cooldown_query)
@@ -216,7 +215,7 @@ class Router:
             candidate.api_key.error_count += 1
             if candidate.api_key.error_count >= 5 and candidate.api_key.success_count == 0:
                 candidate.api_key.status = "unhealthy"
-                candidate.api_key.cooldown_until = datetime.utcnow() + timedelta(minutes=10)
+                candidate.api_key.cooldown_until = datetime.now(timezone.utc) + timedelta(minutes=10)
 
         # Handle rate limit cooldown
         if failure_category == FailureCategory.PROVIDER_RATE_LIMIT:
@@ -226,7 +225,7 @@ class Router:
                 api_key_id=candidate.api_key.id,
                 source="explicit_429",
                 reason="HTTP 429 from provider",
-                expires_at=datetime.utcnow() + timedelta(minutes=5)
+                expires_at=datetime.now(timezone.utc) + timedelta(minutes=5)
             )
             db.add(cooldown)
 
