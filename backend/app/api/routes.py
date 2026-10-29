@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 from typing import Optional, List, Dict, Any
+from datetime import datetime, timedelta, timezone
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from sqlalchemy.orm import selectinload
@@ -313,7 +314,7 @@ async def stats(db: AsyncSession = Depends(get_db)):
     total_keys = await db.execute(select(func.count(ApiKey.id)))
     total_platforms = await db.execute(select(func.count(Platform.id)))
     recent_requests = await db.execute(
-        select(func.count(RequestLog.id)).where(RequestLog.created_at > datetime.utcnow() - timedelta(hours=24))
+        select(func.count(RequestLog.id)).where(RequestLog.created_at > datetime.now(timezone.utc) - timedelta(hours=24))
     )
     return {
         "models": total_models.scalar(),
@@ -321,6 +322,3 @@ async def stats(db: AsyncSession = Depends(get_db)):
         "platforms": total_platforms.scalar(),
         "requests_24h": recent_requests.scalar()
     }
-
-
-from datetime import datetime, timedelta
