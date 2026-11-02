@@ -395,6 +395,11 @@ class Router:
         if not candidates:
             return RouteResult(success=False, error="No candidates", failure_category=FailureCategory.PROVIDER_ERROR)
 
+        # For streaming: sequential failover (no hedging)
+        # For non-streaming: hedged requests after delay
+        if stream:
+            return await self._try_candidates_sequential(db, candidates, payload, stream)
+
         # First candidate
         first = candidates[0]
         await rate_limiter.acquire(first.api_key.id, first.api_key.concurrency_limit)
@@ -406,7 +411,7 @@ class Router:
 
             # Check if we should hedge
             hedge_delay = settings.hedge_after_ms / 1000.0
-            if len(candidates) > 1 and hedge_delay > 0 and not stream:
+            if len(candidates) > 1 and hedge_delay > 0:
                 await asyncio.sleep(hedge_delay)
                 if not task.done():
                     # Start hedged request
@@ -453,6 +458,55 @@ class Router:
         finally:
             rate_limiter.release(first.api_key.id)
             first.api_key.current_concurrency = max(0, first.api_key.current_concurrency - 1)
+
+    async def _try_candidates_sequential(
+        self,
+        db: AsyncSession,
+        candidates: List[RouteCandidate],
+        payload: Dict[str, Any],
+        stream: bool
+    ) -> RouteResult:
+        """Try candidates sequentially for streaming (no hedging)."""
+        last_error = None
+        last_category = FailureCategory.PROVIDER_ERROR
+
+        for i, candidate in enumerate(candidates):
+            acquired = await rate_limiter.acquire(candidate.api_key.id, candidate.api_key.concurrency_limit)
+            if not acquired:
+                continue
+            candidate.api_key.current_concurrency += 1
+
+            try:
+                result = await self.execute_request(db, candidate, payload, stream)
+
+                await self.record_request(
+                    db, result.candidate,
+                    "success" if result.success else "error",
+                    result.failure_category,
+                    result.latency_ms,
+                    result.tokens or {"total": 0},
+                    result.error,
+                    hedged=False,
+                    attempt=i + 1
+                )
+
+                if result.success:
+                    return result
+
+                # Request failed, try next candidate
+                last_error = result.error
+                last_category = result.failure_category or FailureCategory.PROVIDER_ERROR
+
+            finally:
+                rate_limiter.release(candidate.api_key.id)
+                candidate.api_key.current_concurrency = max(0, candidate.api_key.current_concurrency - 1)
+
+        # All candidates failed
+        return RouteResult(
+            success=False,
+            error=last_error or "All candidates failed",
+            failure_category=last_category
+        )
 
 
 router = Router()

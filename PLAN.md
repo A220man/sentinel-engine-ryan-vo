@@ -4,7 +4,7 @@ Each round completes one feature or repair. Future items are planned, not implem
 
 ## Current round
 
-core-skeleton
+smart-routing
 
 ## Roadmap
 
@@ -26,7 +26,7 @@ Tests: `backend/tests/test_routes.py`, `backend/tests/test_router.py`, `frontend
 
 ### smart-routing — Smart routing with failover and per-key concurrency
 
-Status: planned
+Status: done
 
 Acceptance:
 - Router selects healthy keys per platform

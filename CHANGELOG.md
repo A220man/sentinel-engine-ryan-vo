@@ -1,8 +1,26 @@
 # Changelog
 
-## 1.1.0 — work-in-progress checkpoint
+## 1.2.0 — work-in-progress checkpoint
 
 Partial code published for continued development. Known issues: STATUS.md.
+
+## 1.1.0 — work-in-progress checkpoint
+
+### Added
+- Streaming request failover: sequential candidate retry for SSE streaming (was no failover)
+- Router `_try_candidates_sequential` method for streaming path
+- Tests for rate limiter semaphore behavior and streaming failover
+
+### Changed
+- Smart routing feature marked complete: failover, hedging (non-streaming), concurrency limits, failure attribution
+- Removed unnecessary blocking acquire checks in router (semaphores always block until available)
+
+### Fixed
+- Router now properly handles streaming failover by trying next candidate on upstream error
+
+Partial code published for continued development. Known issues: STATUS.md.
+
+
 
 ## 1.0.0 — work-in-progress checkpoint
 

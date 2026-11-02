@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "current_feature": "core-skeleton",
+  "current_feature": "smart-routing",
   "features": [
     {
       "id": "core-skeleton",
@@ -36,13 +36,13 @@
     {
       "id": "smart-routing",
       "title": "Smart routing with failover and per-key concurrency",
-      "status": "planned",
+      "status": "done",
       "acceptance": [
         "Router selects healthy keys per platform",
         "Per-key concurrency limits enforced",
         "Automatic failover on upstream errors",
         "Hedged requests (race multiple providers)",
-        "Failure attribution: 429/timeout → provider, 404 → model"
+        "Failure attribution: 429/timeout \u2192 provider, 404 \u2192 model"
       ],
       "implementation": [
         "backend/app/services/router.py",
