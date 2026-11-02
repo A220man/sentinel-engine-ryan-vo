@@ -203,3 +203,106 @@ async def test_router_get_healthy_keys_filters_concurrency(mock_api_key):
 
     usable = await router._is_key_usable(mock_db, mock_api_key)
     assert usable is False
+
+
+@pytest.mark.asyncio
+async def test_rate_limiter_semaphore_blocks_at_limit():
+    """Test rate limiter semaphore blocks when at concurrency limit."""
+    # Use a fresh key_id
+    key_id = 99999
+    
+    # Acquire up to limit (5)
+    for _ in range(5):
+        acquired = await rate_limiter.acquire(key_id, 5)
+        assert acquired is True
+    
+    # Next acquire should block - we test with a timeout
+    import asyncio
+    try:
+        await asyncio.wait_for(rate_limiter.acquire(key_id, 5), timeout=0.1)
+        assert False, "Should have timed out"
+    except asyncio.TimeoutError:
+        pass  # Expected - blocked
+    
+    # Release all
+    for _ in range(5):
+        rate_limiter.release(key_id)
+    
+    # Now acquire should work immediately
+    acquired = await asyncio.wait_for(rate_limiter.acquire(key_id, 5), timeout=0.1)
+    assert acquired is True
+    rate_limiter.release(key_id)
+
+
+@pytest.mark.asyncio
+async def test_try_candidates_sequential_streaming_failover(mock_platform, mock_api_key, mock_model):
+    """Test sequential failover for streaming requests."""
+    from unittest.mock import AsyncMock
+    from app.services.router import RouteCandidate, RouteResult, FailureCategory
+
+    router = Router()
+    mock_db = AsyncMock()
+
+    # Ensure mock key has counters initialized
+    mock_api_key.error_count = 0
+    mock_api_key.success_count = 0
+
+    # Create two candidates
+    candidate1 = RouteCandidate(
+        platform=mock_platform,
+        api_key=mock_api_key,
+        model=mock_model,
+        priority=5
+    )
+
+    # Second key with initialized counters
+    key2 = ApiKey(
+        id=2,
+        platform_id=mock_platform.id,
+        key_encrypted="encrypted",
+        concurrency_limit=10,
+        current_concurrency=0,
+        enabled=True,
+        status="healthy",
+        error_count=0,
+        success_count=0
+    )
+    key2.platform = mock_platform
+    candidate2 = RouteCandidate(
+        platform=mock_platform,
+        api_key=key2,
+        model=mock_model,
+        priority=3
+    )
+
+    call_count = 0
+
+    async def mock_execute(db, candidate, payload, stream):
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            # First call fails
+            return RouteResult(
+                success=False,
+                error="Upstream error",
+                failure_category=FailureCategory.PROVIDER_ERROR,
+                latency_ms=100,
+                tokens={"total": 0},
+                candidate=candidate
+            )
+        # Second call succeeds
+        return RouteResult(
+            success=True,
+            response={"choices": [{"message": {"content": "success"}}]},
+            latency_ms=100,
+            tokens={"total": 10},
+            candidate=candidate
+        )
+
+    router.execute_request = mock_execute
+
+    result = await router._try_candidates_sequential(mock_db, [candidate1, candidate2], {"messages": []}, stream=True)
+
+    assert result.success is True
+    assert result.candidate == candidate2
+    assert call_count == 2
