@@ -66,6 +66,8 @@ async def list_models(
             supports_tools=m.supports_tools,
             supports_vision=m.supports_vision,
             supports_streaming=m.supports_streaming,
+            last_probed=m.last_probed.isoformat() if m.last_probed else None,
+            capability_updated_at=m.capability_updated_at.isoformat() if m.capability_updated_at else None,
         )
         for m in models
     ])
@@ -322,3 +324,10 @@ async def stats(db: AsyncSession = Depends(get_db)):
         "platforms": total_platforms.scalar(),
         "requests_24h": recent_requests.scalar()
     }
+
+# Probing
+@api_router.post("/models/{model_id}/probe")
+async def probe_model(model_id: int, probe_tools: bool = False, db: AsyncSession = Depends(get_db)):
+    from app.services.prober import prober
+    result = await prober.probe_model_now(model_id, probe_tools)
+    return result

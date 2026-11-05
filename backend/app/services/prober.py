@@ -64,7 +64,11 @@ class ModelProber:
 
             for model in models:
                 if model.api_key and await self._should_probe(db, model):
-                    await self._probe_model(db, model)
+                    # Always do chat probe first
+                    await self._probe_model(db, model, probe_tools=False)
+                    # If model supports tools or capability is unknown, also probe tool capability
+                    if model.supports_tools or model.capability == "unknown":
+                        await self._probe_model(db, model, probe_tools=True)
 
     async def _should_probe(self, db: AsyncSession, model: Model) -> bool:
         # Skip if model had recent real traffic (check request logs)
@@ -153,6 +157,7 @@ class ModelProber:
 
                 model.capability = capability_after
                 model.last_probed = datetime.now(timezone.utc)
+                model.capability_updated_at = datetime.now(timezone.utc)
                 model.probe_success_count += 1
 
                 await self._log_probe(db, model, probe_type, "success", capability_before, capability_after, latency_ms)
@@ -161,6 +166,7 @@ class ModelProber:
                 capability_after = "unavailable"
                 model.capability = capability_after
                 model.last_probed = datetime.now(timezone.utc)
+                model.capability_updated_at = datetime.now(timezone.utc)
                 model.probe_failure_count += 1
 
                 await self._log_probe(db, model, probe_type, "failure", capability_before, capability_after, latency_ms, response.text)
@@ -170,6 +176,7 @@ class ModelProber:
             capability_after = "unavailable"
             model.capability = capability_after
             model.last_probed = datetime.now(timezone.utc)
+            model.capability_updated_at = datetime.now(timezone.utc)
             model.probe_failure_count += 1
 
             await self._log_probe(db, model, probe_type, "timeout", capability_before, capability_after, latency_ms, str(e))
