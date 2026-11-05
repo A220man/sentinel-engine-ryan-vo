@@ -115,6 +115,8 @@ export interface ModelResponse {
   supports_tools?: boolean
   supports_vision?: boolean
   supports_streaming: boolean
+  last_probed?: string
+  capability_updated_at?: string
 }
 
 export interface ModelsListResponse {

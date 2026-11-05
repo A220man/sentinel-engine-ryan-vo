@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
-import { Search, Filter, ChevronDown, Loader2 } from 'lucide-react'
+import { Search, Filter, ChevronDown, Loader2, AlertCircle, Clock } from 'lucide-react'
 import { useStore } from '../store'
 import { api } from '../api/client'
-import { getCapabilityBadgeColor, getCapabilityLabel, formatModelName } from '../utils'
+import { getCapabilityBadgeColor, getCapabilityLabel, formatModelName, getStalenessInfo } from '../utils'
 
 export function ModelList() {
   const { models, setModels, selectedModel, setSelectedModel, isLoading, setLoading, setError, clearError } = useStore()
@@ -134,9 +134,28 @@ export function ModelList() {
                   </td>
                   <td className="px-4 py-3 text-slate-300 capitalize">{model.platform}</td>
                   <td className="px-4 py-3">
-                    <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border ${getCapabilityBadgeColor(model.capability)}`}>
-                      {getCapabilityLabel(model.capability)}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border ${getCapabilityBadgeColor(model.capability)}`}>
+                        {getCapabilityLabel(model.capability)}
+                      </span>
+                      {(() => {
+                        const staleness = getStalenessInfo(model.capability_updated_at, model.last_probed)
+                        if (staleness.isStale) {
+                          return (
+                            <span className={`flex items-center gap-1 text-xs ${staleness.color}`} title={`Last capability update: ${staleness.text}`}>
+                              <AlertCircle className="w-3 h-3" />
+                              {staleness.text}
+                            </span>
+                          )
+                        }
+                        return (
+                          <span className={`flex items-center gap-1 text-xs ${staleness.color}`} title={`Last probed: ${staleness.text}`}>
+                            <Clock className="w-3 h-3" />
+                            {staleness.text}
+                          </span>
+                        )
+                      })()}
+                    </div>
                   </td>
                   <td className="px-4 py-3 text-slate-500 font-mono">
                     {model.context_window ? model.context_window.toLocaleString() : '—'}

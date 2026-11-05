@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "current_feature": "smart-routing",
+  "current_feature": "model-probing",
   "features": [
     {
       "id": "core-skeleton",
@@ -55,19 +55,22 @@
     {
       "id": "model-probing",
       "title": "Proactive per-model probing with capability labels",
-      "status": "planned",
+      "status": "done",
       "acceptance": [
         "Scheduler runs periodic probes per (platform, model, key)",
         "Labels: tool_capable, chat_only, unavailable, unknown",
         "Labels decay over time (staleness threshold)",
         "Dashboard badges show capability labels",
-        "API exposes labels via /v1/models"
+        "API exposes labels via /v1/models",
+        "Manual probe trigger via /v1/models/{model_id}/probe",
+        "Staleness indicator in dashboard"
       ],
       "implementation": [
         "backend/app/services/prober.py",
         "backend/app/api/routes.py",
         "frontend/src/components/ModelList.tsx",
-        "backend/tests/test_prober.py"
+        "backend/tests/test_prober.py",
+        "frontend/src/utils.ts"
       ],
       "tests": [
         "backend/tests/test_prober.py"

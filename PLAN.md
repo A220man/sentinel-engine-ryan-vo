@@ -4,7 +4,7 @@ Each round completes one feature or repair. Future items are planned, not implem
 
 ## Current round
 
-smart-routing
+model-probing
 
 ## Roadmap
 
@@ -41,7 +41,7 @@ Tests: `backend/tests/test_router.py`
 
 ### model-probing — Proactive per-model probing with capability labels
 
-Status: planned
+Status: done
 
 Acceptance:
 - Scheduler runs periodic probes per (platform, model, key)
@@ -49,8 +49,10 @@ Acceptance:
 - Labels decay over time (staleness threshold)
 - Dashboard badges show capability labels
 - API exposes labels via /v1/models
+- Manual probe trigger via /v1/models/{model_id}/probe
+- Staleness indicator in dashboard
 
-Implementation: `backend/app/services/prober.py`, `backend/app/api/routes.py`, `frontend/src/components/ModelList.tsx`, `backend/tests/test_prober.py`
+Implementation: `backend/app/services/prober.py`, `backend/app/api/routes.py`, `frontend/src/components/ModelList.tsx`, `backend/tests/test_prober.py`, `frontend/src/utils.ts`
 
 Tests: `backend/tests/test_prober.py`
 
