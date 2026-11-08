@@ -149,8 +149,10 @@ class ModelProber:
 
                 if probe_tools and tool_calls:
                     capability_after = "tool_capable"
+                    model.supports_tools = True
                 elif probe_tools and not tool_calls:
                     capability_after = "chat_only"
+                    model.supports_tools = False
                 else:
                     # For chat probe, if successful, at least chat_only
                     capability_after = "chat_only" if capability_before == "unknown" else capability_before

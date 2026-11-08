@@ -149,6 +149,33 @@ async def test_probe_model_tool_capable(mock_model):
         await prober._probe_model(mock_db, mock_model, probe_tools=True)
 
     assert mock_model.capability == "tool_capable"
+    assert mock_model.supports_tools is True
+    mock_db.commit.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_probe_model_tool_chat_only(mock_model):
+    """Test tool probe that returns no tool calls -> chat_only and supports_tools=False"""
+    prober = ModelProber()
+    mock_db = AsyncMock()
+    mock_db.commit = AsyncMock()
+
+    mock_response = MagicMock()
+    mock_response.status_code = 200
+    mock_response.json.return_value = {
+        "choices": [{
+            "message": {
+                "content": "OK",
+                "tool_calls": []
+            }
+        }]
+    }
+
+    with patch.object(prober.client, 'post', AsyncMock(return_value=mock_response)):
+        await prober._probe_model(mock_db, mock_model, probe_tools=True)
+
+    assert mock_model.capability == "chat_only"
+    assert mock_model.supports_tools is False
     mock_db.commit.assert_called_once()
 
 
