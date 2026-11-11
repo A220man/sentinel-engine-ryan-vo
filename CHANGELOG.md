@@ -1,6 +1,12 @@
 # Changelog
 
+## 1.5.0 — work-in-progress checkpoint
+
+Partial code published for continued development. Known issues: STATUS.md.
+
 ## 1.4.0 — work-in-progress checkpoint
+   ### Added
+   - Capability label decay (staleness): stale model capabilities automatically decay to "unknown" after configured time.
 
 Partial code published for continued development. Known issues: STATUS.md.
 
