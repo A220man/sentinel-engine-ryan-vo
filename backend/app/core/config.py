@@ -26,6 +26,8 @@ class Settings(BaseSettings):
     probe_interval_sec: int = 300
     probe_timeout_sec: int = 30
     probe_enabled: bool = True
+    # Capability label decay (staleness)
+    capability_decay_seconds: int = 600
 
     # Routing
     max_concurrent_per_key: int = 10

@@ -40,6 +40,7 @@ class ModelProber:
         while self._running:
             try:
                 await self.probe_all_models()
+                await self._decay_all_capabilities()
             except Exception as e:
                 print(f"Probe loop error: {e}")
             await asyncio.sleep(settings.probe_interval_sec)
@@ -222,5 +223,16 @@ class ModelProber:
             await self._probe_model(db, model, probe_tools)
             return {"success": True, "capability": model.capability}
 
+    async def _decay_all_capabilities(self):
+        """Decay capabilities for stale models."""
+        async for db in get_db():
+            cutoff = datetime.now(timezone.utc) - timedelta(seconds=settings.capability_decay_seconds)
+            stmt = select(Model).where(Model.capability_updated_at < cutoff)
+            result = await db.execute(stmt)
+            models = result.scalars().all()
+            for model in models:
+                model.capability = "unknown"
+                model.capability_updated_at = datetime.now(timezone.utc)
+            await db.commit()
 
 prober = ModelProber()
