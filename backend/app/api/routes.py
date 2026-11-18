@@ -145,7 +145,17 @@ async def chat_completions_stream(
     upstream_response = result.response
 
     async def stream_generator():
+        import asyncio
+        keepalive_interval = settings.stream_keepalive_ms / 1000.0
+        last_keepalive = asyncio.get_event_loop().time()
         async for line in upstream_response.aiter_lines():
+            current_time = asyncio.get_event_loop().time()
+            if current_time - last_keepalive >= keepalive_interval:
+                # OpenAI-style keepalive comment line
+                yield ": keepalive\n"
+                # Anthropic-style event ping
+                yield "event: ping\ndata: {}\n\n"
+                last_keepalive = current_time
             if line:
                 yield f"{line}\n"
         await upstream_response.aclose()

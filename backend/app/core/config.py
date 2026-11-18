@@ -29,6 +29,9 @@ class Settings(BaseSettings):
     # Capability label decay (staleness)
     capability_decay_seconds: int = 600
 
+    # Streaming keep-alive
+    stream_keepalive_ms: int = 30000
+
     # Routing
     max_concurrent_per_key: int = 10
     hedge_after_ms: int = 5000
