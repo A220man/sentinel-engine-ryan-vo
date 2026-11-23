@@ -79,7 +79,7 @@
     {
       "id": "streaming-keepalive",
       "title": "SSE keep-alive during reasoning buffering",
-      "status": "planned",
+      "status": "done",
       "acceptance": [
         "SSE pings emitted during reasoning buffer phase",
         "Anthropic surface: event: ping frames",
