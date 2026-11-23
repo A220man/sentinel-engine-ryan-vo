@@ -58,7 +58,7 @@ Tests: `backend/tests/test_prober.py`
 
 ### streaming-keepalive — SSE keep-alive during reasoning buffering
 
-Status: planned
+Status: done
 
 Acceptance:
 - SSE pings emitted during reasoning buffer phase
