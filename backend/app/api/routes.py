@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from pydantic import BaseModel, Field
 from typing import Optional, List, Dict, Any
 from datetime import datetime, timedelta, timezone
@@ -335,6 +335,118 @@ async def stats(db: AsyncSession = Depends(get_db)):
         "requests_24h": recent_requests.scalar()
     }
 
+
+
+
+# --- OIDC Authentication Routes ---
+
+@api_router.get("/auth/login")
+async def auth_login(request: Request) -> Dict[str, str]:
+    """Initiate OIDC login - redirect to Keycloak."""
+    import secrets, os
+    auth_url = f"{OIDC_ISSUER}/protocol/openid-connect/authorize"
+    params = (
+        f"?client_id={KEYCLOAK_CLIENT_ID}"
+        f"&redirect_uri={os.environ.get('FRONTEND_URL', 'http://localhost:5173')}/auth/callback"
+        f"&response_type=code"
+        f"&scope=openid profile email"
+        f"&state={secrets.token_hex(16)}"
+        f"&code_challenge={os.environ.get('PKCE_CHALLENGE', 'challenge')}"
+        f"&code_challenge_method=S256"
+    )
+    from fastapi.responses import RedirectResponse
+    response = RedirectResponse(url=auth_url + params)
+    response.set_cookie(
+        key="auth_state",
+        value=params.split("state=")[1].split("&")[0],
+        httponly=True,
+        samesite="lax",
+        secure=False,
+    )
+    return {"auth_url": auth_url + params}
+
+
+@api_router.get("/auth/callback")
+async def auth_callback(request: Request) -> Dict[str, str]:
+    """Handle Keycloak callback - exchange code for token."""
+    code = request.query_params.get("code")
+    state = request.query_params.get("state")
+    stored_state = request.cookies.get("auth_state")
+
+    if not code or not state or not stored_state or state != stored_state:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid callback parameters - CSRF state mismatch",
+        )
+
+    import httpx
+    token_url = f"{OIDC_ISSUER}/protocol/openid-connect/token"
+    async with httpx.AsyncClient() as async_client:
+        token_response = await async_client.post(
+            token_url,
+            data={
+                "grant_type": "authorization_code",
+                "code": code,
+                "client_id": KEYCLOAK_CLIENT_ID,
+                "client_secret": KEYCLOAK_CLIENT_SECRET,
+                "redirect_uri": os.environ.get('FRONTEND_URL', 'http://localhost:5173') + "/auth/callback",
+            },
+        )
+    tokens = token_response.json()
+    id_token = tokens.get("id_token")
+    if not id_token:
+        raise HTTPException(status_code=400, detail="No ID token")
+
+    payload = jwt.decode(
+        id_token,
+        options={"verify_signature": False},
+        audience=OIDC_AUDIENCE,
+    )
+
+    response = RedirectResponse(url="/")
+    response.set_cookie(
+        key="sentinel_session",
+        value=id_token,
+        httponly=True,
+        samesite="lax",
+        secure=False,
+        max_age=86400,
+    )
+    response.delete_cookie("auth_state")
+    return {"redirect": "/"}
+
+
+@api_router.post("/auth/logout")
+async def auth_logout(response: Response) -> Dict[str, str]:
+    """Log out - clear the auth cookie."""
+    response.delete_cookie("sentinel_session")
+    logout_url = f"{OIDC_ISSUER}/protocol/openid-connect/logout"
+    logout_url += f"?post_logout_redirect={os.environ.get('FRONTEND_URL', 'http://localhost:5173')}"
+    response.headers["HX-Redirect"] = logout_url
+    return {"logout_url": logout_url}
+
+
+@api_router.get("/auth/me")
+async def auth_me(request: Request) -> Dict[str, Any]:
+    """Return current user info from the auth cookie."""
+    token = request.cookies.get("sentinel_session")
+    if not token:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
+    try:
+        payload = jwt.decode(
+            token,
+            options={"verify_signature": False},
+            audience=OIDC_AUDIENCE,
+        )
+        return {
+            "sub": payload.get("sub", ""),
+            "email": payload.get("email", ""),
+            "name": payload.get("name", ""),
+            "role": payload.get("role", "viewer"),
+        }
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Invalid authentication token")
 # Probing
 @api_router.post("/models/{model_id}/probe")
 async def probe_model(model_id: int, probe_tools: bool = False, db: AsyncSession = Depends(get_db)):
